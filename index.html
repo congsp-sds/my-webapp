@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Web App Nâng Cấp</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+      background: #f2f6ff;
+    }
+    h1 {
+      color: #333;
+    }
+    input, button {
+      padding: 8px 12px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #clock {
+      font-size: 18px;
+      margin-top: 20px;
+      color: #444;
+    }
+    #result {
+      margin-top: 15px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #008000;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌐 Web App Nâng Cấp</h1>
+
+  <input type="text" id="name" placeholder="Nhập tên...">
+  <button onclick="sayHello()">Chào</button>
+  <button onclick="clearName()">Xóa tên</button>
+
+  <p id="result"></p>
+  <p id="clock"></p>
+
+  <script>
+    // Hàm chào
+    function sayHello() {
+      let name = document.getElementById("name").value.trim();
+      if (name === "") {
+        document.getElementById("result").innerText = "Vui lòng nhập tên!";
+      } else {
+        document.getElementById("result").innerText = "Xin chào " + name + " 👋";
+        localStorage.setItem("savedName", name); // lưu tên
+      }
+    }
+
+    // Hàm xóa tên đã lưu
+    function clearName() {
+      localStorage.removeItem("savedName");
+      document.getElementById("name").value = "";
+      document.getElementById("result").innerText = "Tên đã được xóa!";
+    }
+
+    // Đồng hồ thời gian thực
+    function updateClock() {
+      let now = new Date();
+      let timeString = now.toLocaleTimeString("vi-VN");
+      document.getElementById("clock").innerText = "⏰ Bây giờ: " + timeString;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Khi mở lại web, tự động load tên đã lưu
+    window.onload = function() {
+      let savedName = localStorage.getItem("savedName");
+      if (savedName) {
+        document.getElementById("name").value = savedName;
+        document.getElementById("result").innerText = "Xin chào " + savedName + " 👋 (đã nhớ bạn)";
+      }
+    };
+  </script>
+</body>
+</html>
