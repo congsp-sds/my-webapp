@@ -1,91 +1,304 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Web App Nâng Cấp</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-      background: #f2f6ff;
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hiệu ứng Trái Tim Bay</title>
+<style>
+  :root{
+    --heart-color: #ff4d7e;    /* màu trái tim */
+    --heart-color-2: #ff9ab3;  /* màu phụ */
+    --spawn-interval: 400ms;   /* tần suất tạo trái tim (JS có thể ghi đè) */
+    --max-size: 36px;          /* kích thước tối đa */
+    --min-size: 12px;          /* kích thước tối thiểu */
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background: linear-gradient(180deg,#0f172a 0%, #081021 60%); /* nền tối để nổi bật */
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+
+  /* vùng chứa (toàn màn hình) */
+  .stage{
+    position:relative;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+  }
+
+  /* nút điều khiển demo */
+  .controls{
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    z-index: 50;
+    display:flex;
+    gap:8px;
+    align-items:center;
+    background: rgba(255,255,255,0.06);
+    padding:8px 10px;
+    border-radius:10px;
+    color:#fff;
+    box-shadow: 0 6px 20px rgba(2,6,23,0.6);
+    backdrop-filter: blur(6px);
+  }
+  .controls button{
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .controls input[type="range"]{
+    accent-color: #ff6b9a;
+  }
+  .credit{
+    position: absolute;
+    right:12px;
+    bottom:12px;
+    color: rgba(255,255,255,0.6);
+    font-size:13px;
+  }
+
+  /* trái tim - dùng element .heart với pseudo để tạo hình */
+  .heart{
+    position:absolute;
+    width: var(--size);
+    height: var(--size);
+    pointer-events: none; /* không chặn chuột */
+    transform: translateY(0) scale(1) rotate(0deg);
+    will-change: transform, opacity;
+    z-index: 40;
+    animation: floatUp var(--duration) linear forwards;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
+  }
+
+  /* tạo hình trái tim bằng :before và :after */
+  .heart::before, .heart::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:0;
+    width: 50%;
+    height: 80%;
+    background: var(--color, var(--heart-color));
+    border-radius: 50%;
+    transform-origin: center;
+  }
+  .heart::before{
+    transform: translateX(-50%) translateY(0) rotate(-45deg);
+  }
+  .heart::after{
+    transform: translateX(-50%) translateY(0) rotate(45deg);
+  }
+  .heart .bottom{
+    position:absolute;
+    left:0;
+    top:30%;
+    width:100%;
+    height:70%;
+    background: var(--color, var(--heart-color));
+    clip-path: polygon(50% 100%, 100% 30%, 50% 45%, 0% 30%);
+  }
+
+  /* animation chính - bay lên, phai dần, xoay nhẹ, phóng to/thu nhỏ */
+  @keyframes floatUp{
+    0%{
+      transform: translateY(0) scale(0.8) rotate(0deg);
+      opacity: 1;
+      filter: blur(0px);
     }
-    h1 {
-      color: #333;
+    20%{
+      transform: translateY(-8vh) scale(1.0) rotate(-6deg);
+      opacity: 0.98;
     }
-    input, button {
-      padding: 8px 12px;
-      margin: 5px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+    50%{
+      transform: translateY(-35vh) scale(1.08) rotate(6deg);
+      opacity: 0.85;
+      filter: blur(0.2px);
     }
-    button {
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
+    80%{
+      transform: translateY(-65vh) scale(1.12) rotate(-4deg);
+      opacity: 0.45;
+      filter: blur(0.8px);
     }
-    button:hover {
-      background-color: #0056b3;
+    100%{
+      transform: translateY(-95vh) scale(1.18) rotate(8deg);
+      opacity: 0;
+      filter: blur(1.6px);
     }
-    #clock {
-      font-size: 18px;
-      margin-top: 20px;
-      color: #444;
-    }
-    #result {
-      margin-top: 15px;
-      font-size: 20px;
-      font-weight: bold;
-      color: #008000;
-    }
-  </style>
+  }
+
+  /* khi kích thước nhỏ quá sẽ trông xấu, thêm bóng nhẹ */
+  .heart.small::before, .heart.small::after, .heart.small .bottom{
+    filter: none;
+  }
+
+  /* responsive: trên thiết bị nhỏ giảm số trái tim tối đa */
+  @media (max-width:520px){
+    :root{ --max-size: 28px; --spawn-interval: 500ms; }
+    .controls{ font-size:13px; padding:6px 8px; }
+  }
+</style>
 </head>
 <body>
-  <h1>🌐 Web App Nâng Cấp</h1>
+  <div class="stage" id="stage">
+    <div class="controls" id="controls">
+      <button id="toggleBtn">Bật / Tắt</button>
+      <label style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:13px;color:#fff">Tốc độ</span>
+        <input id="rate" type="range" min="100" max="1200" step="50" value="400">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:13px;color:#fff">Cường độ</span>
+        <input id="burst" type="range" min="1" max="6" step="1" value="2">
+      </label>
+      <button id="popBtn">Bắn 20</button>
+    </div>
 
-  <input type="text" id="name" placeholder="Nhập tên...">
-  <button onclick="sayHello()">Chào</button>
-  <button onclick="clearName()">Xóa tên</button>
+    <div class="credit">Hiệu ứng: Trái tim bay — Tùy chỉnh được</div>
+  </div>
 
-  <p id="result"></p>
-  <p id="clock"></p>
+<script>
+/*
+  Trái tim bay - JS
+  - Tạo DOM .heart, set CSS vars: --size, --duration, --color, left position
+  - Thêm animation floatUp (đã có CSS)
+  - Xóa element sau animationend để tránh rò bộ nhớ
+*/
 
-  <script>
-    // Hàm chào
-    function sayHello() {
-      let name = document.getElementById("name").value.trim();
-      if (name === "") {
-        document.getElementById("result").innerText = "Vui lòng nhập tên!";
-      } else {
-        document.getElementById("result").innerText = "Xin chào " + name + " 👋";
-        localStorage.setItem("savedName", name); // lưu tên
-      }
+/* cấu hình mặc định — có thể chỉnh trong root CSS hoặc bằng JS */
+const cfg = {
+  minSize: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--min-size')) || 12,
+  maxSize: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--max-size')) || 36,
+  minDuration: 2800, // ms
+  maxDuration: 5600,
+  colors: [ getComputedStyle(document.documentElement).getPropertyValue('--heart-color').trim() || '#ff4d7e',
+            getComputedStyle(document.documentElement).getPropertyValue('--heart-color-2').trim() || '#ff9ab3',
+            '#ffd1e0' ],
+  spawnInterval: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--spawn-interval')) || 400
+};
+
+const stage = document.getElementById('stage');
+let running = true;
+let spawnTimer = null;
+
+function rand(min, max){ return Math.random()*(max-min)+min; }
+function randInt(min, max){ return Math.floor(rand(min, max+1)); }
+
+/* tạo một trái tim */
+function createHeart(xPercent){
+  const heart = document.createElement('div');
+  heart.className = 'heart';
+
+  // kích thước random
+  const size = Math.round(rand(cfg.minSize, cfg.maxSize));
+  heart.style.setProperty('--size', size + 'px');
+
+  // màu ngẫu nhiên
+  const color = cfg.colors[Math.floor(Math.random()*cfg.colors.length)];
+  heart.style.setProperty('--color', color);
+
+  // duration random
+  const dur = Math.round(rand(cfg.minDuration, cfg.maxDuration));
+  heart.style.setProperty('--duration', dur + 'ms');
+
+  // vị trí ngang (đặt theo phần trăm stage width)
+  const left = (typeof xPercent === 'number') ? xPercent : rand(5, 95);
+  heart.style.left = left + '%';
+
+  // thêm cấu trúc bottom để trái tim tròn đỉnh và nhọn đáy
+  const bottom = document.createElement('div');
+  bottom.className = 'bottom';
+  heart.appendChild(bottom);
+
+  // thêm class nhỏ nếu nhỏ hơn ngưỡng
+  if(size < Math.max(14, cfg.minSize + 2)) heart.classList.add('small');
+
+  // xoay và translate X nhẹ để tạo hiệu ứng đa dạng (ngẫu nhiên)
+  heart.style.transform = `translateY(0) rotate(${rand(-10,10)}deg)`;
+
+  // remove khi animation kết thúc
+  heart.addEventListener('animationend', () => {
+    heart.remove();
+  }, { once:true });
+
+  stage.appendChild(heart);
+
+  return heart;
+}
+
+/* spawn liên tục */
+function startSpawning(interval = cfg.spawnInterval, burst = 1){
+  stopSpawning();
+  spawnTimer = setInterval(() => {
+    if(!running) return;
+    for(let i=0;i<burst;i++){
+      // spawn xung quanh giữa (nằm trong khoảng giữa 30% - 70% để đẹp) với chút random
+      const center = 50;
+      const jitter = rand(-30,30);
+      createHeart(Math.max(4, Math.min(96, center + jitter)));
     }
+  }, interval);
+}
+function stopSpawning(){
+  if(spawnTimer) clearInterval(spawnTimer);
+  spawnTimer = null;
+}
 
-    // Hàm xóa tên đã lưu
-    function clearName() {
-      localStorage.removeItem("savedName");
-      document.getElementById("name").value = "";
-      document.getElementById("result").innerText = "Tên đã được xóa!";
-    }
+/* gui controls */
+const toggleBtn = document.getElementById('toggleBtn');
+const rateRange = document.getElementById('rate');
+const burstRange = document.getElementById('burst');
+const popBtn = document.getElementById('popBtn');
 
-    // Đồng hồ thời gian thực
-    function updateClock() {
-      let now = new Date();
-      let timeString = now.toLocaleTimeString("vi-VN");
-      document.getElementById("clock").innerText = "⏰ Bây giờ: " + timeString;
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
+toggleBtn.addEventListener('click', () => {
+  running = !running;
+  toggleBtn.textContent = running ? 'Tắt' : 'Bật';
+  if(running && !spawnTimer) startSpawning(parseInt(rateRange.value), parseInt(burstRange.value));
+});
 
-    // Khi mở lại web, tự động load tên đã lưu
-    window.onload = function() {
-      let savedName = localStorage.getItem("savedName");
-      if (savedName) {
-        document.getElementById("name").value = savedName;
-        document.getElementById("result").innerText = "Xin chào " + savedName + " 👋 (đã nhớ bạn)";
-      }
-    };
-  </script>
+rateRange.addEventListener('input', () => {
+  const val = parseInt(rateRange.value);
+  if(spawnTimer) startSpawning(val, parseInt(burstRange.value));
+});
+
+burstRange.addEventListener('input', () => {
+  const val = parseInt(burstRange.value);
+  if(spawnTimer) startSpawning(parseInt(rateRange.value), val);
+});
+
+popBtn.addEventListener('click', () => {
+  for(let i=0;i<20;i++){
+    // tạo trái tim ở vị trí ngẫu nhiên gần giữa
+    createHeart(50 + rand(-20,20));
+  }
+});
+
+/* spawn theo click chuột - tạo trái tim ở vị trí click */
+stage.addEventListener('click', (e) => {
+  // tránh khi bấm vào controls
+  if(e.target.closest('.controls')) return;
+  // tính tỉ lệ phần trăm theo chiều ngang stage
+  const rect = stage.getBoundingClientRect();
+  const px = ((e.clientX - rect.left) / rect.width) * 100;
+  // spawn một vài trái tim nhỏ ở chỗ click
+  const count = randInt(1,5);
+  for(let i=0;i<count;i++){
+    createHeart(Math.max(2, Math.min(98, px + rand(-8,8))));
+  }
+});
+
+/* khởi chạy */
+startSpawning(parseInt(rateRange.value), parseInt(burstRange.value));
+
+/* tidy up khi đóng tab - ngăn memory leak (không bắt buộc nhưng tốt) */
+window.addEventListener('beforeunload', () => {
+  stopSpawning();
+});
+</script>
 </body>
 </html>
